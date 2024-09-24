@@ -136,11 +136,6 @@ mount -o loop,compress=zstd rootfs.img rootfs
 # Снятие флага только для чтения
 btrfs property set -ts rootfs ro false
 
-# Копирование /var/lib/pacman во временное место
-echo "Копирование /var/lib/pacman во временное место..."
-mkdir -p rootfs/tmp/var_backup/lib
-cp -a rootfs/var/lib/pacman rootfs/tmp/var_backup/lib/
-
 # Монтирование необходимых файловых систем
 echo "Монтирование необходимых файловых систем..."
 mount -t devtmpfs dev rootfs/dev
@@ -150,14 +145,6 @@ mount -t tmpfs tmpfs rootfs/tmp
 mount -t tmpfs -o mode=755 tmpfs rootfs/run
 mount -t tmpfs -o mode=755 tmpfs rootfs/var
 mount -t tmpfs -o mode=755 tmpfs rootfs/home
-
-# Восстановление /var/lib/pacman из резервной копии
-echo "Восстановление /var/lib/pacman из резервной копии..."
-mkdir -p rootfs/var/lib
-cp -a rootfs/tmp/var_backup/lib/pacman rootfs/var/lib/
-
-# Удаление временной резервной копии
-rm -rf rootfs/tmp/var_backup
 
 # Копирование resolv.conf
 echo "Копирование resolv.conf..."
@@ -169,7 +156,7 @@ cp custom-pacman.conf rootfs/etc/pacman.conf
 
 # Установка пользовательских пакетов (измените по необходимости)
 echo "Установка пользовательских пакетов..."
-chroot rootfs pacman -Sy --noconfirm your-custom-package
+# chroot rootfs pacman -Sy --noconfirm your-custom-package
 
 # Обновление 'manifest.json' и 'os-release'
 echo "Обновление 'manifest.json' и 'os-release'..."
