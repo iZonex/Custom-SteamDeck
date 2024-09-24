@@ -172,13 +172,13 @@ cp client.conf rootfs/etc/steamos-atomupd/client.conf
 echo "Установка флага только для чтения..."
 btrfs property set -ts rootfs ro true
 
-# Размонтирование файловых систем
-echo "Размонтирование файловых систем..."
-umount -R rootfs
-
 # Обрезка файловой системы
 echo "Обрезка файловой системы..."
-fstrim -v rootfs.img
+fstrim -v rootfs
+
+# Размонтирование файловых систем
+echo "Размонтирование файловых систем..."
+umount --recursive rootfs
 
 # Создание casync хранилища и индекса
 echo "Создание casync хранилища и индекса..."
