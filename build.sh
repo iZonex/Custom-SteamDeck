@@ -1,96 +1,193 @@
 #!/bin/bash
 
-set -ex
+set -e
 
-# Переменные
-VERSION="3.5.7"
-BUILD_ID=$(date +%Y%m%d.%H%M%S)
-IMAGE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20231122.1/steamdeck-20231122.1-3.5.7.raucb"
-CASYNC_STORE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20231122.1/steamdeck-20231122.1-3.5.7.castr"
-
-# Отладочный вывод
-echo "Текущий пользователь: $(whoami)"
-echo "UID: $(id -u)"
-echo "GID: $(id -g)"
-echo "Рабочий каталог: $(pwd)"
-echo "Содержимое рабочего каталога:"
-ls -la
-
-# Настройка прав доступа
-sudo chown -R builder:builder /home/builder
-
-# Создание необходимых директорий
-mkdir -p ~/fauxlo/bundle
-cd ~/fauxlo
-
-# Загрузка RAUC-бандла
-wget -O rootfs.raucb "$IMAGE_URL"
-if [ ! -f rootfs.raucb ]; then
-    echo "Не удалось загрузить RAUC-бандл."
+# Проверка запуска от root или через sudo
+if [ "$EUID" -ne 0 ]; then
+    echo "Пожалуйста, запустите этот скрипт от имени root или используя sudo."
     exit 1
 fi
 
-# Извлечение rootfs.img.caibx из RAUC-бандла
-unsquashfs -d rauc_bundle rootfs.raucb
-cp rauc_bundle/rootfs.img.caibx .
+# Обновление системы и установка базовых инструментов
+echo "Обновление системы и установка базовых пакетов..."
+apt update
+apt upgrade -y
 
-# Использование casync для загрузки образа rootfs
-echo "Начало casync extract"
-casync -vv extract --store="$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
-echo "Завершение casync extract"
+# Установка необходимых пакетов
+echo "Установка необходимых пакетов..."
+apt install -y build-essential git wget curl sudo jq rauc casync btrfs-progs squashfs-tools cpio python3 python3-pip openssl
 
+# Переменные
+echo "Получение информации о последней версии SteamOS..."
+
+# URL JSON-файла с информацией о последней версии
+JSON_URL="https://steamdeck-atomupd.steamos.cloud/meta/steamos/amd64/snapshot/steamdeck.json"
+
+# Загрузка и парсинг JSON
+JSON_DATA=$(curl -s "$JSON_URL")
+
+# Извлечение данных из JSON с помощью jq
+IMAGE_URL_BASE="https://steamdeck-images.steamos.cloud"
+BUILD_ID=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].image.buildid')
+VERSION=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].image.version')
+UPDATE_PATH=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].update_path')
+IMAGE_URL="$IMAGE_URL_BASE/$UPDATE_PATH"
+
+# Правильное формирование CASYNC_STORE_URL
+CASYNC_STORE_URL="${IMAGE_URL%.raucb}.castr"
+
+echo "Последняя версия: $VERSION"
+echo "BUILD_ID: $BUILD_ID"
+echo "IMAGE_URL: $IMAGE_URL"
+echo "CASYNC_STORE_URL: $CASYNC_STORE_URL"
+
+# Генерация сертификатов и ключей
+echo "Генерация сертификатов и ключей..."
+if [ ! -f key.pem ] || [ ! -f cert.pem ] || [ ! -f keyring.pem ]; then
+    openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=Custom SteamOS"
+    cp cert.pem keyring.pem
+fi
+
+# Создание файла 'custom-pacman.conf'
+echo "Создание 'custom-pacman.conf'..."
+cat > custom-pacman.conf << EOL
+[options]
+Architecture = auto
+CheckSpace
+SigLevel = Required DatabaseOptional
+LocalFileSigLevel = Optional
+
+[fauxlo]
+Server = https://your-repo-url/\$arch
+SigLevel = Never
+
+Include = /etc/pacman.d/mirrorlist
+EOL
+
+# Создание файла 'client.conf'
+echo "Создание 'client.conf'..."
+cat > client.conf << EOL
+[Server]
+QueryUrl = https://your-update-server/updates
+ImagesUrl = https://your-update-server/
+MetaUrl = https://your-update-server/meta
+Variants = rel;rc;beta;bc;main
+EOL
+
+# Проверка наличия rootfs.img
+if [ -f rootfs.img ]; then
+    echo "Файл rootfs.img уже существует. Пропускаем загрузку casync."
+else
+    # Загрузка RAUC-бандла
+    echo "Загрузка RAUC-бандла..."
+    wget -O rootfs.raucb "$IMAGE_URL"
+
+    if [ ! -f rootfs.raucb ]; then
+        echo "Не удалось загрузить RAUC-бандл."
+        exit 1
+    fi
+
+    # Проверка и удаление существующей директории rauc_bundle
+    echo "Проверяем, существует ли директория rauc_bundle..."
+    if [ -d "rauc_bundle" ]; then
+        echo "Директория rauc_bundle существует. Пытаемся удалить..."
+        rm -rf rauc_bundle
+        if [ -d "rauc_bundle" ]; then
+            echo "Ошибка: не удалось удалить директорию rauc_bundle"
+            exit 1
+        else
+            echo "Директория rauc_bundle успешно удалена."
+        fi
+    else
+        echo "Директория rauc_bundle не существует."
+    fi
+
+    # Извлечение 'rootfs.img.caibx' из RAUC-бандла
+    echo "Извлечение 'rootfs.img.caibx' из RAUC-бандла..."
+    unsquashfs -d rauc_bundle rootfs.raucb
+    cp rauc_bundle/rootfs.img.caibx .
+
+    if [ ! -f rootfs.img.caibx ]; then
+        echo "'rootfs.img.caibx' не найден!"
+        exit 1
+    fi
+
+    # Использование casync для загрузки образа rootfs
+    echo "Начало 'casync extract'..."
+    casync -v extract --store="$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
+    echo "'casync extract' завершен."
+fi
+
+# Проверка, смонтирован ли rootfs.img
+if mountpoint -q rootfs; then
+    echo "rootfs.img уже смонтирован. Размонтируем..."
+    umount -R rootfs
+fi
 
 # Рандомизация UUID файловой системы
-sudo btrfstune -fu rootfs.img
+echo "Рандомизация UUID файловой системы..."
+btrfstune -fu rootfs.img
 
 # Монтирование файловой системы
-mkdir rootfs
-sudo mount -o loop,compress=zstd rootfs.img rootfs
+echo "Монтирование файловой системы..."
+mkdir -p rootfs
+mount -o loop,compress=zstd rootfs.img rootfs
 
 # Снятие флага только для чтения
-sudo btrfs property set -ts rootfs ro false
+btrfs property set -ts rootfs ro false
 
 # Монтирование необходимых файловых систем
-sudo mount -t proc /proc rootfs/proc
-sudo mount --bind /dev rootfs/dev
-sudo mount -t sysfs sysfs rootfs/sys
-sudo mount -t tmpfs tmpfs rootfs/tmp
-sudo mount -t tmpfs tmpfs rootfs/run
-sudo mount -t tmpfs tmpfs rootfs/var
-sudo mount -t tmpfs tmpfs rootfs/home
+echo "Монтирование необходимых файловых систем..."
+mount -t devtmpfs dev rootfs/dev
+mount -t proc proc rootfs/proc
+mount -t sysfs sysfs rootfs/sys
+mount -t tmpfs tmpfs rootfs/tmp
+mount -t tmpfs -o mode=755 tmpfs rootfs/run
+mount -t tmpfs -o mode=755 tmpfs rootfs/var
+mount -t tmpfs -o mode=755 tmpfs rootfs/home
 
-# Монтирование resolv.conf
-sudo mount --bind /etc/resolv.conf rootfs/etc/resolv.conf
+# Копирование resolv.conf
+echo "Копирование resolv.conf..."
+mount --bind "$(realpath /etc/resolv.conf)" rootfs/etc/resolv.conf
 
-# Копирование пользовательского репозитория
-sudo cp custom-pacman.conf rootfs/etc/pacman.conf
+# Копирование пользовательского конфигурационного файла pacman
+echo "Копирование пользовательского конфигурационного файла pacman..."
+cp custom-pacman.conf rootfs/etc/pacman.conf
 
-# Установка пользовательских пакетов
-sudo arch-chroot rootfs pacman -Sy --noconfirm your-custom-package
+# Установка пользовательских пакетов (измените по необходимости)
+echo "Установка пользовательских пакетов..."
+# chroot rootfs pacman -Sy --noconfirm your-custom-package
 
-# Обновление manifest.json и os-release
-sudo sed -i "s/\"buildid\": \".*\"/\"buildid\": \"$BUILD_ID\"/" rootfs/lib/steamos-atomupd/manifest.json
-sudo sed -i "s/BUILD_ID=.*/BUILD_ID=$BUILD_ID/" rootfs/etc/os-release
+# Обновление 'manifest.json' и 'os-release'
+echo "Обновление 'manifest.json' и 'os-release'..."
+sed -i "s/\"buildid\": \".*\"/\"buildid\": \"$BUILD_ID\"/" rootfs/lib/steamos-atomupd/manifest.json
+sed -i "s/BUILD_ID=.*/BUILD_ID=$BUILD_ID/" rootfs/etc/os-release
 
 # Обновление RAUC keyring и конфигурации клиента
-sudo cp keyring.pem rootfs/etc/rauc/keyring.pem
-sudo cp client.conf rootfs/etc/steamos-atomupd/client.conf
+echo "Обновление RAUC keyring и конфигурации клиента..."
+cp keyring.pem rootfs/etc/rauc/keyring.pem
+cp client.conf rootfs/etc/steamos-atomupd/client.conf
 
 # Установка флага только для чтения
-sudo btrfs property set -ts rootfs ro true
-
-# Размонтирование файловых систем
-sudo umount -R rootfs
+echo "Установка флага только для чтения..."
+btrfs property set -ts rootfs ro true
 
 # Обрезка файловой системы
-sudo fstrim -v rootfs.img
+echo "Обрезка файловой системы..."
+fstrim -v rootfs
+
+# Размонтирование файловых систем
+echo "Размонтирование файловых систем..."
+umount --recursive rootfs
 
 # Создание casync хранилища и индекса
-mkdir bundle
+echo "Создание casync хранилища и индекса..."
+mkdir -p bundle
 casync make --store=rootfs.img.castr bundle/rootfs.img.caibx rootfs.img
 
-# Генерация manifest.raucm
-cat >bundle/manifest.raucm <<EOF
+# Генерация 'manifest.raucm'
+echo "Генерация 'manifest.raucm'..."
+cat > bundle/manifest.raucm << EOL
 [update]
 compatible=steamos-amd64
 version=$VERSION
@@ -99,12 +196,14 @@ version=$VERSION
 sha256=$(sha256sum rootfs.img | awk '{ print $1 }')
 size=$(stat -c %s rootfs.img)
 filename=rootfs.img.caibx
-EOF
+EOL
 
 # Генерация файла UUID
-blkid -s UUID -o value rootfs.img >bundle/UUID
+echo "Генерация файла UUID..."
+blkid -s UUID -o value rootfs.img > bundle/UUID
 
-# Подписывание и создание RAUC-бандла
+# Создание RAUC-бандла
+echo "Создание RAUC-бандла..."
 rauc bundle \
     --signing-keyring=cert.pem \
     --cert=cert.pem \
@@ -112,3 +211,5 @@ rauc bundle \
     bundle rootfs-custom.raucb
 
 echo "Кастомный образ SteamOS успешно создан!"
+
+echo "Процесс сборки завершен."
