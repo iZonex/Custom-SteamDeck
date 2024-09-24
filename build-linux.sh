@@ -25,7 +25,6 @@ tar -xzf desync_${DESYNC_VERSION}_linux_amd64.tar.gz
 sudo mv desync /usr/local/bin/
 sudo chmod +x /usr/local/bin/desync
 rm desync_${DESYNC_VERSION}_linux_amd64.tar.gz LICENSE README.md
-desync --version
 
 # Установка rauc
 echo "Установка rauc..."
