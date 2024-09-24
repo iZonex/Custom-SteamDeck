@@ -146,14 +146,14 @@ mount -t tmpfs tmpfs rootfs/var
 mount -t tmpfs tmpfs rootfs/home
 
 # Копирование resolv.conf
-cp /etc/resolv.conf rootfs/etc/resolv.conf
+# cp /etc/resolv.conf rootfs/etc/resolv.conf
 
 # Копирование пользовательского конфигурационного файла pacman
-cp custom-pacman.conf rootfs/etc/pacman.conf
+# cp custom-pacman.conf rootfs/etc/pacman.conf
 
 # Установка пользовательских пакетов (измените по необходимости)
 echo "Установка пользовательских пакетов..."
-chroot rootfs pacman -Sy --noconfirm your-custom-package
+# chroot rootfs pacman -Sy --noconfirm your-custom-package
 
 # Обновление 'manifest.json' и 'os-release'
 echo "Обновление 'manifest.json' и 'os-release'..."
