@@ -17,7 +17,7 @@ apt install -y build-essential git wget curl sudo jq
 # Установка зависимостей
 echo "Установка зависимостей..."
 
-# Установка casync из стандартных репозиториев
+# Установка casync
 echo "Установка casync..."
 apt install -y casync
 
@@ -44,7 +44,9 @@ BUILD_ID=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].image.buildid')
 VERSION=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].image.version')
 UPDATE_PATH=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].update_path')
 IMAGE_URL="$IMAGE_URL_BASE/$UPDATE_PATH"
-CASYNC_STORE_URL="${IMAGE_URL_BASE}/${UPDATE_PATH%/*}/$(basename "$IMAGE_URL" .raucb).castr/"
+
+# Правильное формирование CASYNC_STORE_URL
+CASYNC_STORE_URL="${IMAGE_URL%.raucb}.castr"
 
 echo "Последняя версия: $VERSION"
 echo "BUILD_ID: $BUILD_ID"
