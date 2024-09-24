@@ -53,11 +53,6 @@ echo "BUILD_ID: $BUILD_ID"
 echo "IMAGE_URL: $IMAGE_URL"
 echo "CASYNC_STORE_URL: $CASYNC_STORE_URL"
 
-# Создание рабочего каталога
-echo "Создание рабочего каталога..."
-mkdir -p ~/fauxlo
-cd ~/fauxlo
-
 # Генерация сертификатов и ключей
 echo "Генерация сертификатов и ключей..."
 openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=Custom SteamOS"
