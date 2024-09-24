@@ -12,22 +12,10 @@ fi
 echo "Обновление системы и установка базовых пакетов..."
 apt update
 apt upgrade -y
-apt install -y build-essential git wget curl sudo jq
 
-# Установка зависимостей
-echo "Установка зависимостей..."
-
-# Установка casync
-echo "Установка casync..."
-apt install -y casync
-
-# Установка rauc
-echo "Установка rauc..."
-apt install -y rauc
-
-# Установка других необходимых пакетов
-echo "Установка других необходимых пакетов..."
-apt install -y btrfs-progs squashfs-tools cpio python3 python3-pip openssl
+# Установка необходимых пакетов
+echo "Установка необходимых пакетов..."
+apt install -y build-essential git wget curl sudo jq rauc casync btrfs-progs squashfs-tools cpio python3 python3-pip openssl
 
 # Переменные
 echo "Получение информации о последней версии SteamOS..."
@@ -84,44 +72,49 @@ MetaUrl = https://your-update-server/meta
 Variants = rel;rc;beta;bc;main
 EOL
 
-# Загрузка RAUC-бандла
-echo "Загрузка RAUC-бандла..."
-wget -O rootfs.img.caibx "$IMAGE_URL"
-
-if [ ! -f rootfs.img.caibx ]; then
-    echo "Не удалось загрузить RAUC-бандл."
-    exit 1
-fi
-
-# Проверка и удаление существующей директории rauc_bundle
-echo "Проверяем, существует ли директория rauc_bundle..."
-if [ -d "rauc_bundle" ]; then
-    echo "Директория rauc_bundle существует. Пытаемся удалить..."
-    rm -rf rauc_bundle
-    if [ -d "rauc_bundle" ]; then
-        echo "Ошибка: не удалось удалить директорию rauc_bundle"
-        exit 1
-    else
-        echo "Директория rauc_bundle успешно удалена."
-    fi
+# Проверка наличия rootfs.img
+if [ -f rootfs.img ]; then
+    echo "Файл rootfs.img уже существует. Пропускаем загрузку casync."
 else
-    echo "Директория rauc_bundle не существует."
+    # Загрузка RAUC-бандла
+    echo "Загрузка RAUC-бандла..."
+    wget -O rootfs.raucb "$IMAGE_URL"
+
+    if [ ! -f rootfs.raucb ]; then
+        echo "Не удалось загрузить RAUC-бандл."
+        exit 1
+    fi
+
+    # Проверка и удаление существующей директории rauc_bundle
+    echo "Проверяем, существует ли директория rauc_bundle..."
+    if [ -d "rauc_bundle" ]; then
+        echo "Директория rauc_bundle существует. Пытаемся удалить..."
+        rm -rf rauc_bundle
+        if [ -d "rauc_bundle" ]; then
+            echo "Ошибка: не удалось удалить директорию rauc_bundle"
+            exit 1
+        else
+            echo "Директория rauc_bundle успешно удалена."
+        fi
+    else
+        echo "Директория rauc_bundle не существует."
+    fi
+
+    # Извлечение 'rootfs.img.caibx' из RAUC-бандла
+    echo "Извлечение 'rootfs.img.caibx' из RAUC-бандла..."
+    unsquashfs -d rauc_bundle rootfs.raucb
+    cp rauc_bundle/rootfs.img.caibx .
+
+    if [ ! -f rootfs.img.caibx ]; then
+        echo "'rootfs.img.caibx' не найден!"
+        exit 1
+    fi
+
+    # Использование casync для загрузки образа rootfs
+    echo "Начало 'casync extract'..."
+    casync -v extract --store="$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
+    echo "'casync extract' завершен."
 fi
-
-# Извлечение 'rootfs.img.caibx' из RAUC-бандла
-echo "Извлечение 'rootfs.img.caibx' из RAUC-бандла..."
-unsquashfs -d rauc_bundle rootfs.img.caibx
-cp rauc_bundle/rootfs.img.caibx .
-
-if [ ! -f rootfs.img.caibx ]; then
-    echo "'rootfs.img.caibx' не найден!"
-    exit 1
-fi
-
-# Использование casync для загрузки образа rootfs
-echo "Начало 'casync extract'..."
-casync -v extract --store="$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
-echo "'casync extract' завершен."
 
 # Рандомизация UUID файловой системы
 echo "Рандомизация UUID файловой системы..."
@@ -129,31 +122,46 @@ btrfstune -fu rootfs.img
 
 # Монтирование файловой системы
 echo "Монтирование файловой системы..."
-mkdir rootfs
+mkdir -p rootfs
 mount -o loop,compress=zstd rootfs.img rootfs
 
 # Снятие флага только для чтения
 btrfs property set -ts rootfs ro false
 
+# Копирование /var/lib/pacman во временное место
+echo "Копирование /var/lib/pacman во временное место..."
+mkdir -p rootfs/tmp/var_backup/lib
+cp -a rootfs/var/lib/pacman rootfs/tmp/var_backup/lib/
+
 # Монтирование необходимых файловых систем
 echo "Монтирование необходимых файловых систем..."
-mount --bind /dev rootfs/dev
-mount -t proc /proc rootfs/proc
+mount -t devtmpfs dev rootfs/dev
+mount -t proc proc rootfs/proc
 mount -t sysfs sysfs rootfs/sys
 mount -t tmpfs tmpfs rootfs/tmp
-mount -t tmpfs tmpfs rootfs/run
-mount -t tmpfs tmpfs rootfs/var
-mount -t tmpfs tmpfs rootfs/home
+mount -t tmpfs -o mode=755 tmpfs rootfs/run
+mount -t tmpfs -o mode=755 tmpfs rootfs/var
+mount -t tmpfs -o mode=755 tmpfs rootfs/home
+
+# Восстановление /var/lib/pacman из резервной копии
+echo "Восстановление /var/lib/pacman из резервной копии..."
+mkdir -p rootfs/var/lib
+cp -a rootfs/tmp/var_backup/lib/pacman rootfs/var/lib/
+
+# Удаление временной резервной копии
+rm -rf rootfs/tmp/var_backup
 
 # Копирование resolv.conf
-# cp /etc/resolv.conf rootfs/etc/resolv.conf
+echo "Копирование resolv.conf..."
+mount --bind "$(realpath /etc/resolv.conf)" rootfs/etc/resolv.conf
 
 # Копирование пользовательского конфигурационного файла pacman
-# cp custom-pacman.conf rootfs/etc/pacman.conf
+echo "Копирование пользовательского конфигурационного файла pacman..."
+cp custom-pacman.conf rootfs/etc/pacman.conf
 
 # Установка пользовательских пакетов (измените по необходимости)
 echo "Установка пользовательских пакетов..."
-# chroot rootfs pacman -Sy --noconfirm your-custom-package
+chroot rootfs pacman -Sy --noconfirm your-custom-package
 
 # Обновление 'manifest.json' и 'os-release'
 echo "Обновление 'manifest.json' и 'os-release'..."
@@ -161,10 +169,12 @@ sed -i "s/\"buildid\": \".*\"/\"buildid\": \"$BUILD_ID\"/" rootfs/lib/steamos-at
 sed -i "s/BUILD_ID=.*/BUILD_ID=$BUILD_ID/" rootfs/etc/os-release
 
 # Обновление RAUC keyring и конфигурации клиента
+echo "Обновление RAUC keyring и конфигурации клиента..."
 cp keyring.pem rootfs/etc/rauc/keyring.pem
 cp client.conf rootfs/etc/steamos-atomupd/client.conf
 
 # Установка флага только для чтения
+echo "Установка флага только для чтения..."
 btrfs property set -ts rootfs ro true
 
 # Размонтирование файловых систем
@@ -172,11 +182,12 @@ echo "Размонтирование файловых систем..."
 umount -R rootfs
 
 # Обрезка файловой системы
+echo "Обрезка файловой системы..."
 fstrim -v rootfs.img
 
 # Создание casync хранилища и индекса
 echo "Создание casync хранилища и индекса..."
-mkdir bundle
+mkdir -p bundle
 casync make --store=rootfs.img.castr bundle/rootfs.img.caibx rootfs.img
 
 # Генерация 'manifest.raucm'
@@ -193,6 +204,7 @@ filename=rootfs.img.caibx
 EOL
 
 # Генерация файла UUID
+echo "Генерация файла UUID..."
 blkid -s UUID -o value rootfs.img > bundle/UUID
 
 # Создание RAUC-бандла
