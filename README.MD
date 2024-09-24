@@ -20,8 +20,8 @@ This project allows you to create a custom SteamOS image by modifying the root f
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-repo/custom-steamos-builder.git
-cd custom-steamos-builder
+git clone https://github.com/iZonex/Custom-SteamDeck.git
+cd Custom-SteamDeck
 ```
 
 ### 2. Update Configuration Files
