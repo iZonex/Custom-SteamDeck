@@ -19,8 +19,8 @@ echo "Установка зависимостей..."
 
 # Установка desync
 echo "Установка desync..."
-wget https://github.com/folbricht/desync/releases/download/v0.9.0/desync_0.9.0_linux_amd64.deb
-sudo dpkg -i desync_0.9.0_linux_amd64.deb
+wget https://github.com/folbricht/desync/releases/download/v0.9.6/desync_0.9.6_linux_amd64.tar.gz
+sudo dpkg -i desync_0.9.6_linux_amd64.deb
 sudo apt-get install -f -y  # Установка недостающих зависимостей
 
 # Установка rauc
