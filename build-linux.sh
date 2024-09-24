@@ -100,16 +100,19 @@ if [ ! -f rootfs.raucb ]; then
 fi
 
 # Проверка и удаление существующей директории rauc_bundle
+echo "Проверяем, существует ли директория rauc_bundle..."
 if [ -d "rauc_bundle" ]; then
-    echo "Директория rauc_bundle уже существует. Удаляем..."
+    echo "Директория rauc_bundle существует. Пытаемся удалить..."
     rm -rf rauc_bundle
+    if [ -d "rauc_bundle" ]; then
+        echo "Ошибка: не удалось удалить директорию rauc_bundle"
+        exit 1
+    else
+        echo "Директория rauc_bundle успешно удалена."
+    fi
+else
+    echo "Директория rauc_bundle не существует."
 fi
-
-# Создание директории rauc_bundle
-mkdir rauc_bundle
-
-# Проверка прав доступа к директории rauc_bundle
-ls -ld rauc_bundle
 
 # Извлечение 'rootfs.img.caibx' из RAUC-бандла
 echo "Извлечение 'rootfs.img.caibx' из RAUC-бандла..."
@@ -123,7 +126,7 @@ fi
 
 # Использование casync для загрузки образа rootfs
 echo "Начало 'casync extract'..."
-casync -v extract --store="\$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
+sudo casync -v extract --store="\$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
 echo "'casync extract' завершен."
 
 # Рандомизация UUID файловой системы
@@ -180,7 +183,7 @@ sudo fstrim -v rootfs.img
 # Создание casync хранилища и индекса
 echo "Создание casync хранилища и индекса..."
 mkdir bundle
-casync make --store=rootfs.img.castr bundle/rootfs.img.caibx rootfs.img
+sudo casync make --store=rootfs.img.castr bundle/rootfs.img.caibx rootfs.img
 
 # Генерация 'manifest.raucm'
 echo "Генерация 'manifest.raucm'..."
@@ -196,11 +199,11 @@ filename=rootfs.img.caibx
 EOL
 
 # Генерация файла UUID
-blkid -s UUID -o value rootfs.img > bundle/UUID
+sudo blkid -s UUID -o value rootfs.img > bundle/UUID
 
 # Создание RAUC-бандла
 echo "Создание RAUC-бандла..."
-rauc bundle \
+sudo rauc bundle \
     --signing-keyring=cert.pem \
     --cert=cert.pem \
     --key=key.pem \
