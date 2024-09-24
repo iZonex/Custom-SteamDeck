@@ -17,9 +17,11 @@ apt install -y build-essential git wget curl sudo jq
 # Установка зависимостей
 echo "Установка зависимостей..."
 
-# Установка casync из стандартных репозиториев
-echo "Установка casync..."
-apt install -y casync
+# Установка desync
+echo "Установка desync..."
+wget https://github.com/folbricht/desync/releases/download/v0.9.0/desync_0.9.0_linux_amd64.deb
+sudo dpkg -i desync_0.9.0_linux_amd64.deb
+sudo apt-get install -f -y  # Установка недостающих зависимостей
 
 # Установка rauc
 echo "Установка rauc..."
@@ -121,10 +123,10 @@ if [ ! -f rootfs.img.caibx ]; then
     exit 1
 fi
 
-# Использование casync для загрузки образа rootfs
-echo "Начало 'casync extract'..."
-casync -v extract --store="$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
-echo "'casync extract' завершен."
+# Использование desync для загрузки образа rootfs
+echo "Начало 'desync extract'..."
+desync -v extract --store "$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
+echo "'desync extract' завершен."
 
 # Рандомизация UUID файловой системы
 echo "Рандомизация UUID файловой системы..."
@@ -177,10 +179,10 @@ umount -R rootfs
 # Обрезка файловой системы
 fstrim -v rootfs.img
 
-# Создание casync хранилища и индекса
-echo "Создание casync хранилища и индекса..."
+# Создание desync хранилища и индекса
+echo "Создание desync хранилища и индекса..."
 mkdir bundle
-casync make --store=rootfs.img.castr bundle/rootfs.img.caibx rootfs.img
+desync make --store rootfs.img.castr bundle/rootfs.img.caibx rootfs.img
 
 # Генерация 'manifest.raucm'
 echo "Генерация 'manifest.raucm'..."
