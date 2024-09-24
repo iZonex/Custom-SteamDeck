@@ -118,15 +118,15 @@ else
     echo "'casync extract' завершен."
 fi
 
-# Рандомизация UUID файловой системы
-echo "Рандомизация UUID файловой системы..."
-btrfstune -fu rootfs.img
-
 # Проверка, смонтирован ли rootfs.img
 if mountpoint -q rootfs; then
     echo "rootfs.img уже смонтирован. Размонтируем..."
     umount -R rootfs
 fi
+
+# Рандомизация UUID файловой системы
+echo "Рандомизация UUID файловой системы..."
+btrfstune -fu rootfs.img
 
 # Монтирование файловой системы
 echo "Монтирование файловой системы..."
