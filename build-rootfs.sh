@@ -3,25 +3,12 @@
 # Скрипт для автоматической загрузки последней версии корневой файловой системы SteamOS.
 
 # Проверка наличия необходимых утилит
-if ! command -v curl &> /dev/null; then
-    echo "Команда curl не найдена. Пожалуйста, установите curl."
-    exit 1
-fi
-
-if ! command -v jq &> /dev/null; then
-    echo "Команда jq не найдена. Пожалуйста, установите jq."
-    exit 1
-fi
-
-if ! command -v unsquashfs &> /dev/null; then
-    echo "Команда unsquashfs не найдена. Пожалуйста, установите squashfs-tools."
-    exit 1
-fi
-
-if ! command -v casync &> /dev/null; then
-    echo "Команда casync не найдена. Пожалуйста, установите casync."
-    exit 1
-fi
+for cmd in curl jq unsquashfs casync; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Команда $cmd не найдена. Пожалуйста, установите $cmd."
+        exit 1
+    fi
+done
 
 echo "Получение информации о последней версии SteamOS..."
 
@@ -72,16 +59,25 @@ if [ $? -ne 0 ] || [ ! -f "$RAUC_BUNDLE_FILE" ]; then
 fi
 
 # Создание временной директории для извлечения
-TMP_DIR=$(mktemp -d)
+TMP_DIR=$(mktemp -d -t rauc_extract_XXXXXX)
+
+# Проверка создания временной директории
+if [ ! -d "$TMP_DIR" ]; then
+    echo "Не удалось создать временную директорию."
+    exit 1
+fi
 
 # Извлечение rootfs.img.caibx из RAUC-бандла
 echo "Извлечение rootfs.img.caibx из RAUC-бандла..."
 
-unsquashfs -d "$TMP_DIR" "$RAUC_BUNDLE_FILE" rootfs.img.caibx
+# Добавляем опцию -no-exit-code для игнорирования некоторых ошибок
+unsquashfs -d "$TMP_DIR" -no-exit-code "$RAUC_BUNDLE_FILE" rootfs.img.caibx
 
 # Проверка успешности извлечения
 if [ $? -ne 0 ] || [ ! -f "$TMP_DIR/rootfs.img.caibx" ]; then
     echo "Не удалось извлечь rootfs.img.caibx."
+    # Удаляем временную директорию перед выходом
+    rm -rf "$TMP_DIR"
     exit 1
 fi
 
@@ -95,6 +91,9 @@ casync extract \
 # Проверка успешности извлечения casync
 if [ $? -ne 0 ] || [ ! -f "rootfs.img" ]; then
     echo "Не удалось извлечь rootfs.img с помощью casync."
+    # Удаляем временные файлы перед выходом
+    rm -rf "$TMP_DIR"
+    rm "$RAUC_BUNDLE_FILE"
     exit 1
 fi
 
