@@ -91,9 +91,9 @@ EOL
 
 # Загрузка RAUC-бандла
 echo "Загрузка RAUC-бандла..."
-wget -O rootfs.raucb "$IMAGE_URL"
+wget -O rootfs.img.caibx "$IMAGE_URL"
 
-if [ ! -f rootfs.raucb ]; then
+if [ ! -f rootfs.img.caibx ]; then
     echo "Не удалось загрузить RAUC-бандл."
     exit 1
 fi
@@ -115,7 +115,7 @@ fi
 
 # Извлечение 'rootfs.img.caibx' из RAUC-бандла
 echo "Извлечение 'rootfs.img.caibx' из RAUC-бандла..."
-unsquashfs -d rauc_bundle rootfs.raucb
+unsquashfs -d rauc_bundle rootfs.img.caibx
 cp rauc_bundle/rootfs.img.caibx .
 
 if [ ! -f rootfs.img.caibx ]; then
