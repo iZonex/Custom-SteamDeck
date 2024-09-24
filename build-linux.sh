@@ -99,9 +99,21 @@ if [ ! -f rootfs.raucb ]; then
     exit 1
 fi
 
+# Проверка и удаление существующей директории rauc_bundle
+if [ -d "rauc_bundle" ]; then
+    echo "Директория rauc_bundle уже существует. Удаляем..."
+    rm -rf rauc_bundle
+fi
+
+# Создание директории rauc_bundle
+mkdir rauc_bundle
+
+# Проверка прав доступа к директории rauc_bundle
+ls -ld rauc_bundle
+
 # Извлечение 'rootfs.img.caibx' из RAUC-бандла
 echo "Извлечение 'rootfs.img.caibx' из RAUC-бандла..."
-unsquashfs -d rauc_bundle rootfs.raucb
+sudo unsquashfs -d rauc_bundle rootfs.raucb
 cp rauc_bundle/rootfs.img.caibx .
 
 if [ ! -f rootfs.img.caibx ]; then
