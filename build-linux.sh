@@ -2,8 +2,6 @@
 
 set -e
 
-# Скрипт для автоматической установки зависимостей и сборки кастомного образа SteamOS на Ubuntu x86_64
-
 # Проверка запуска от root или через sudo
 if [ "$EUID" -ne 0 ]; then
     echo "Пожалуйста, запустите этот скрипт от имени root или используя sudo."
@@ -14,7 +12,7 @@ fi
 echo "Обновление системы и установка базовых пакетов..."
 apt update
 apt upgrade -y
-apt install -y build-essential git wget curl sudo
+apt install -y build-essential git wget curl sudo jq
 
 # Установка зависимостей
 echo "Установка зависимостей..."
@@ -32,10 +30,26 @@ echo "Установка других необходимых пакетов..."
 apt install -y btrfs-progs squashfs-tools cpio python3 python3-pip openssl
 
 # Переменные
-VERSION="3.6.15"
-BUILD_ID=$(date +%Y%m%d.%H%M%S)
-IMAGE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20240923.100/steamdeck-20240923.100-3.6.15.raucb"
-CASYNC_STORE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20240923.100/steamdeck-20240923.100-3.6.15.castr/"
+echo "Получение информации о последней версии SteamOS..."
+
+# URL JSON-файла с информацией о последней версии
+JSON_URL="https://steamdeck-atomupd.steamos.cloud/meta/steamos/amd64/snapshot/steamdeck.json"
+
+# Загрузка и парсинг JSON
+JSON_DATA=$(curl -s "$JSON_URL")
+
+# Извлечение данных из JSON с помощью jq
+IMAGE_URL_BASE="https://steamdeck-images.steamos.cloud"
+BUILD_ID=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].image.buildid')
+VERSION=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].image.version')
+UPDATE_PATH=$(echo "$JSON_DATA" | jq -r '.minor.candidates[0].update_path')
+IMAGE_URL="$IMAGE_URL_BASE/$UPDATE_PATH"
+CASYNC_STORE_URL="${IMAGE_URL_BASE}/${UPDATE_PATH%/*}/$(basename "$IMAGE_URL" .raucb).castr/"
+
+echo "Последняя версия: $VERSION"
+echo "BUILD_ID: $BUILD_ID"
+echo "IMAGE_URL: $IMAGE_URL"
+echo "CASYNC_STORE_URL: $CASYNC_STORE_URL"
 
 # Создание рабочего каталога
 echo "Создание рабочего каталога..."
