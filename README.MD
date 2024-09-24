@@ -79,7 +79,3 @@ This project is licensed under the MIT License.
 ## Disclaimer
 
 This tool is intended for educational and development purposes. Use it responsibly and at your own risk.
-
----
-
-You can copy and save this content into a file named `README.md`.
