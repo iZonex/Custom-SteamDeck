@@ -43,8 +43,10 @@ echo "CASYNC_STORE_URL: $CASYNC_STORE_URL"
 
 # Генерация сертификатов и ключей
 echo "Генерация сертификатов и ключей..."
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=Custom SteamOS"
-cp cert.pem keyring.pem
+if [ ! -f key.pem ] || [ ! -f cert.pem ] || [ ! -f keyring.pem ]; then
+    openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN=Custom SteamOS"
+    cp cert.pem keyring.pem
+fi
 
 # Создание файла 'custom-pacman.conf'
 echo "Создание 'custom-pacman.conf'..."
@@ -119,6 +121,12 @@ fi
 # Рандомизация UUID файловой системы
 echo "Рандомизация UUID файловой системы..."
 btrfstune -fu rootfs.img
+
+# Проверка, смонтирован ли rootfs.img
+if mountpoint -q rootfs; then
+    echo "rootfs.img уже смонтирован. Размонтируем..."
+    umount -R rootfs
+fi
 
 # Монтирование файловой системы
 echo "Монтирование файловой системы..."
