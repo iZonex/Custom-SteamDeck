@@ -3,7 +3,7 @@
 # Скрипт для автоматической загрузки последней версии корневой файловой системы SteamOS.
 
 # Проверка наличия необходимых утилит
-for cmd in curl jq unsquashfs casync; do
+for cmd in curl jq 7z casync; do
     if ! command -v "$cmd" &> /dev/null; then
         echo "Команда $cmd не найдена. Пожалуйста, установите $cmd."
         exit 1
@@ -67,11 +67,10 @@ if [ ! -d "$TMP_DIR" ]; then
     exit 1
 fi
 
-# Извлечение rootfs.img.caibx из RAUC-бандла
-echo "Извлечение rootfs.img.caibx из RAUC-бандла..."
+# Извлечение rootfs.img.caibx из RAUC-бандла с помощью 7z
+echo "Извлечение rootfs.img.caibx из RAUC-бандла с помощью 7z..."
 
-# Добавляем опцию -no-exit-code для игнорирования некоторых ошибок
-unsquashfs -d "$TMP_DIR" -no-exit-code "$RAUC_BUNDLE_FILE" rootfs.img.caibx
+7z e "$RAUC_BUNDLE_FILE" rootfs.img.caibx -o"$TMP_DIR"
 
 # Проверка успешности извлечения
 if [ $? -ne 0 ] || [ ! -f "$TMP_DIR/rootfs.img.caibx" ]; then
