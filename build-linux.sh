@@ -32,10 +32,15 @@ apt install -y rauc
 echo "Установка других необходимых пакетов..."
 apt install -y btrfs-progs squashfs-tools cpio python3 python3-pip openssl
 
-# Создание пользователя 'builder' (опционально)
-echo "Создание пользователя 'builder'..."
-useradd -m builder
-echo 'builder ALL=(ALL) NOPASSWD:ALL' | tee /etc/sudoers.d/builder
+# Проверка наличия пользователя 'builder' и его создание при необходимости
+echo "Проверка наличия пользователя 'builder'..."
+if id "builder" &>/dev/null; then
+    echo "Пользователь 'builder' уже существует."
+else
+    echo "Создание пользователя 'builder'..."
+    useradd -m builder
+    echo 'builder ALL=(ALL) NOPASSWD:ALL' | tee /etc/sudoers.d/builder
+fi
 
 # Переход под пользователя 'builder'
 echo "Переход под пользователя 'builder'..."
