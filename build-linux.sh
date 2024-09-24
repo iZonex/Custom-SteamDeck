@@ -44,10 +44,10 @@ sudo -u builder -i bash << EOF
 set -e
 
 # Переменные
-VERSION="3.5.7"
+VERSION="3.6.15"
 BUILD_ID=\$(date +%Y%m%d.%H%M%S)
-IMAGE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20231122.1/steamdeck-20231122.1-3.5.7.raucb"
-CASYNC_STORE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20231122.1/steamdeck-20231122.1-3.5.7.castr"
+IMAGE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20240923.100/steamdeck-20240923.100-3.6.15.raucb"
+CASYNC_STORE_URL="https://steamdeck-images.steamos.cloud/steamdeck/20240923.100/steamdeck-20240923.100-3.6.15.castr/"
 
 # Создание рабочего каталога
 echo "Создание рабочего каталога..."
