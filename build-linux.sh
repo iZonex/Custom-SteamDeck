@@ -20,28 +20,13 @@ apt install -y build-essential git wget curl sudo
 # Установка зависимостей
 echo "Установка зависимостей..."
 
-# Установка casync
+# Установка casync из стандартных репозиториев
 echo "Установка casync..."
-apt install -y libcurl4-openssl-dev libgcrypt20-dev libacl1-dev libfuse-dev autoconf automake libtool pkg-config libssl-dev
-git clone https://github.com/systemd/casync.git
-cd casync
-./autogen.sh
-./configure
-make
-make install
-cd ..
-rm -rf casync
+apt install -y casync
 
 # Установка rauc
 echo "Установка rauc..."
-apt install -y libglib2.0-dev libjson-glib-1.0-dev liblzma-dev libcurl4-gnutls-dev
-git clone https://github.com/rauc/rauc.git
-cd rauc
-./autogen.sh --disable-client --disable-service
-make
-make install
-cd ..
-rm -rf rauc
+apt install -y rauc
 
 # Установка других необходимых пакетов
 echo "Установка других необходимых пакетов..."
