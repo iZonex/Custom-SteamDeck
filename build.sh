@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 # Переменные
 VERSION="3.5.7"
@@ -35,7 +35,10 @@ unsquashfs -d rauc_bundle rootfs.raucb
 cp rauc_bundle/rootfs.img.caibx .
 
 # Использование casync для загрузки образа rootfs
-casync extract --store="$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
+echo "Начало casync extract"
+casync -vv extract --store="$CASYNC_STORE_URL" rootfs.img.caibx rootfs.img
+echo "Завершение casync extract"
+
 
 # Рандомизация UUID файловой системы
 sudo btrfstune -fu rootfs.img

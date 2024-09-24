@@ -18,10 +18,12 @@ init_volume:
 
 run:
 	docker run --rm --privileged \
+		--network=host \
+		--ulimit nofile=1024:4096 \
 		--platform=$(PLATFORM) \
 		-v fauxlo_bundle:/home/builder/fauxlo/bundle \
 		-it $(IMAGE_NAME) /home/builder/build.sh
 
-clean:
+clean:\
 	docker rmi $(IMAGE_NAME)
 	rm -rf output
