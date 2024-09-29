@@ -24,12 +24,26 @@ echo "Updating 'manifest.json' and 'os-release'..."
 sed -i "s/\"buildid\": \".*\"/\"buildid\": \"$BUILD_ID\"/" rootfs/lib/steamos-atomupd/manifest.json
 sed -i "s/BUILD_ID=.*/BUILD_ID=$BUILD_ID/" rootfs/etc/os-release
 
+# Install systemd-boot into EFI partition
+echo "Installing systemd-boot into EFI partition..."
+mkdir -p rootfs/boot
+bootctl --path=rootfs/boot install
+
+# Create systemd-boot entry
+echo "Creating systemd-boot entry..."
+cat > rootfs/boot/loader/entries/steamos.conf <<EOL
+title   SteamOS Custom
+linux   /vmlinuz-linux
+initrd  /initramfs-linux.img
+options root=UUID=$(blkid -s UUID -o value rootfs.img) rw
+EOL
+
 # Update RAUC keyring and client configuration
 echo "Updating RAUC keyring and client configuration..."
 cp keyring.pem rootfs/etc/rauc/keyring.pem
 cp client.conf rootfs/etc/steamos-atomupd/client.conf
 
-# Set the read-only flag
+# Set the filesystem to read-only
 echo "Setting the filesystem to read-only..."
 btrfs property set -ts rootfs ro true
 

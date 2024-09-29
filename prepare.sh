@@ -12,7 +12,7 @@ fi
 echo "Updating system and installing required packages..."
 apt update
 apt upgrade -y
-apt install -y build-essential git wget curl sudo jq rauc casync btrfs-progs squashfs-tools cpio python3 python3-pip openssl
+apt install -y build-essential git wget curl sudo jq rauc casync btrfs-progs squashfs-tools cpio python3 python3-pip openssl parted gdisk
 
 # Create working directory
 WORKDIR=~/fauxlo
